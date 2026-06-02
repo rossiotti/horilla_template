@@ -1,9 +1,9 @@
 FROM python:3.10-slim-bullseye
 
-# Keep stdout unbuffered so you can see logs in Railway in real-time
+# Keep logs unbuffered so they stream instantly to the Railway dashboard
 ENV PYTHONUNBUFFERED=1
 
-# Install system dependencies (Added libpq-dev which is often required for PostgreSQL connections in Django)
+# Install system dependencies (libpq-dev is crucial for PostgreSQL)
 RUN apt-get update && apt-get install -y \
     libcairo2-dev \
     gcc \
@@ -11,20 +11,20 @@ RUN apt-get update && apt-get install -y \
     libpq-dev \
     && rm -rf /var/lib/apt/lists/*
 
-# Clone Horilla directly into the working directory
+# Clone the latest repository
 RUN git clone https://github.com/horilla-opensource/horilla.git /horilla
 
 WORKDIR /horilla
 
-# Install Python requirements
+# Install Python packages
 RUN pip install --no-cache-dir -r requirements.txt
 
-# Fix line endings and make entrypoint executable
-RUN chmod +x /horilla/entrypoint.sh && sed -i 's/\r$//' /horilla/entrypoint.sh
-
-# Remove the .env files entirely so Horilla is forced to read Railway's runtime environment variables
+# Nuke the default env files to force Horilla to read Railway's Variables tab
 RUN rm -f .env.dist .env
 
-# Bind Django to 0.0.0.0 and listen on the dynamic PORT provided by Railway
-ENTRYPOINT ["/horilla/entrypoint.sh"]
-CMD ["sh", "-c", "python3 manage.py runserver 0.0.0.0:${PORT:-8000}"]
+# Expose a fallback port just in case
+EXPOSE 8000
+
+# Bypass the native entrypoint.sh entirely. 
+# We compile static files, run database migrations, and force the server to bind to Railway's dynamic PORT.
+CMD sh -c "python3 manage.py collectstatic --noinput && python3 manage.py migrate && python3 manage.py runserver 0.0.0.0:${PORT:-8000}"
