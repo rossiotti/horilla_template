@@ -1,4 +1,4 @@
-FROM python:3.10-slim-bullseye
+FROM python:3.10-slim-bookworm
 
 # Keep logs unbuffered so they stream instantly to the Railway dashboard
 ENV PYTHONUNBUFFERED=1
